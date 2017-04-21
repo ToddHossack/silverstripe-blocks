@@ -27,6 +27,12 @@ class BlocksSiteTreeExtension extends SiteTreeExtension
 	);
 	public $blockManager;
 
+	/**
+	 * Replace the content field with blocks
+	 * @config
+	 * @var boolean
+	 */
+	private static $replace_content = false;
 
 	/**
 	 * Check if the Blocks CMSFields should be displayed for this Page
@@ -58,16 +64,28 @@ class BlocksSiteTreeExtension extends SiteTreeExtension
 	 * */
 	public function updateCMSFields(FieldList $fields)
 	{
+		
 		if ($fields->fieldByName('Root.Blocks') || !$this->showBlocksFields()) {
 			return;
 		}
-
+		$replaceContent = Config::inst()->get(get_class($this),'replace_content');
+		
+		if($replaceContent) {
+			$fields->removeByName('Content');
+			$tabName = 'Root.Main';
+		} else {
+			$tabName = 'Root.Blocks';
+		}
+		
 		$areas = $this->blockManager->getAreasForPageType($this->owner->ClassName);
 
 		if ($areas && count($areas)) {
-			$fields->addFieldToTab('Root', new Tab('Blocks', _t('Block.PLURALNAME', 'Blocks')));
+			if(!$replaceContent) {
+				$fields->addFieldToTab($tabName, new Tab('Blocks', _t('Block.PLURALNAME', 'Blocks')));
+			}
+			
 			if (BlockManager::config()->get('block_area_preview')) {
-				$fields->addFieldToTab('Root.Blocks',
+				$fields->addFieldToTab($tabName,
 						LiteralField::create('PreviewLink', $this->areasPreviewButton()));
 			}
 
@@ -86,7 +104,7 @@ class BlocksSiteTreeExtension extends SiteTreeExtension
 				// 	'Name' => 'ASC'
 				// ));
 
-			$fields->addFieldToTab('Root.Blocks', GridField::create('Blocks', _t('Block.PLURALNAME', 'Blocks'), $gridSource, $gridConfig));
+			$fields->addFieldToTab($tabName, GridField::create('Blocks', _t('Block.PLURALNAME', 'Blocks'), $gridSource, $gridConfig));
 
 			// Blocks inherited from BlockSets
 			if ($this->blockManager->getUseBlockSets()) {
@@ -96,25 +114,25 @@ class BlocksSiteTreeExtension extends SiteTreeExtension
 					$activeInherited = $this->getBlocksFromAppliedBlockSets(null, false);
 
 					if ($activeInherited->count()) {
-						$fields->addFieldsToTab('Root.Blocks', array(
+						$fields->addFieldsToTab($tabName, array(
 							GridField::create('InheritedBlockList', _t('BlocksSiteTreeExtension.BlocksInheritedFromBlockSets', 'Blocks Inherited from Block Sets'), $activeInherited,
 								GridFieldConfig_BlockManager::create(false, false, false)),
 							LiteralField::create('InheritedBlockListTip', "<p class='message'>"._t('BlocksSiteTreeExtension.InheritedBlocksEditLink', 'Tip: Inherited blocks can be edited in the {link_start}Block Admin area{link_end}', '', array('link_start' => '<a href="admin/block-admin">', 'link_end' => '</a>')).'<p>'),
 						));
 					}
 
-					$fields->addFieldToTab('Root.Blocks',
+					$fields->addFieldToTab($tabName,
 							ListBoxField::create('DisabledBlocks', _t('BlocksSiteTreeExtension.DisableInheritedBlocks', 'Disable Inherited Blocks'),
 									$inheritedBlocks->map('ID', 'Title'), null, null, true)
 									->setDescription(_t('BlocksSiteTreeExtension.DisableInheritedBlocksDescription', 'Select any inherited blocks that you would not like displayed on this page.'))
 					);
 				} else {
-					$fields->addFieldToTab('Root.Blocks',
+					$fields->addFieldToTab($tabName,
 							ReadonlyField::create('DisabledBlocksReadOnly', _t('BlocksSiteTreeExtension.DisableInheritedBlocks', 'Disable Inherited Blocks'),
 									_t('BlocksSiteTreeExtension.NoInheritedBlocksToDisable','This page has no inherited blocks to disable.')));
 				}
 
-				$fields->addFieldToTab('Root.Blocks',
+				$fields->addFieldToTab($tabName,
 					CheckboxField::create('InheritBlockSets', _t('BlocksSiteTreeExtension.InheritBlocksFromBlockSets', 'Inherit Blocks from Block Sets')));
 			}
 		}
@@ -304,7 +322,14 @@ class BlocksSiteTreeExtension extends SiteTreeExtension
 	 * */
 	public function areasPreviewLink()
 	{
-		return Controller::join_links($this->owner->Link(), '?block_preview=1');
+		$url = Director::absoluteURL($this->owner->Link());
+		// Add SubsiteID param if using Subsites
+        if ($this->owner->getField('SubsiteID')) {
+            $url = HTTP::setGetVar('SubsiteID', $this->owner->SubsiteID, $url);
+        }
+		// Add block_preview
+        $url = HTTP::setGetVar('block_preview', 1, $url);
+		return $url;
 	}
 
 	/**

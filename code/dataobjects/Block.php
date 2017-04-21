@@ -111,6 +111,7 @@ class Block extends DataObject implements PermissionProvider
     public function getCMSFields()
     {
         $self = $this;
+		
         $this->beforeUpdateCMSFields(function($fields) use($self) {
             /** @var FieldList $fields */
             Requirements::add_i18n_javascript(BLOCKS_DIR . '/javascript/lang');
