@@ -60,6 +60,20 @@ class BlocksSiteTreeExtension extends SiteTreeExtension
 	}
 
 	/**
+	 * Determines whether blocks should replace the content field for this page type.
+	 * The content field is replaced if: 
+	 * a) The configuration value $replace_content is true (inherited)
+	 * b) The Content field is not in use (ie. it is empty).
+	 * @return bool
+	 */
+	protected function blocksReplaceContent()
+	{
+		return (bool) (Config::inst()->get(get_class($this),'replace_content')
+			&& empty($this->owner->Content)
+		);
+	}
+	
+	/**
 	 * Block manager for Pages.
 	 * */
 	public function updateCMSFields(FieldList $fields)
@@ -68,7 +82,7 @@ class BlocksSiteTreeExtension extends SiteTreeExtension
 		if ($fields->fieldByName('Root.Blocks') || !$this->showBlocksFields()) {
 			return;
 		}
-		$replaceContent = Config::inst()->get(get_class($this),'replace_content');
+		$replaceContent = $this->blocksReplaceContent();
 		
 		if($replaceContent) {
 			$fields->removeByName('Content');
@@ -316,8 +330,8 @@ class BlocksSiteTreeExtension extends SiteTreeExtension
 	}
 
 	/**
-	 * Get's the link for a block area preview button.
-	 *
+	 * Gets the link for a block area preview button.
+	 * Adds compatibility for subsites
 	 * @return string
 	 * */
 	public function areasPreviewLink()
@@ -333,7 +347,7 @@ class BlocksSiteTreeExtension extends SiteTreeExtension
 	}
 
 	/**
-	 * Get's html for a block area preview button.
+	 * Gets html for a block area preview button.
 	 *
 	 * @return string
 	 * */
@@ -341,4 +355,32 @@ class BlocksSiteTreeExtension extends SiteTreeExtension
 	{
 		return "<a class='ss-ui-button ss-ui-button-small' style='font-style:normal;' href='".$this->areasPreviewLink()."' target='_blank'>"._t('BlocksSiteTreeExtension.PreviewBlockAreasLink', 'Preview Block Areas for this page').'</a>';
 	}
+	
+	/**
+	 * @see SiteTree::AbsoluteLink()
+	 * @see SiteTreeSubsites::alternateAbsoluteLink()
+	 * @return string
+	 */
+	public function alternateAbsoluteLink()
+    {
+        $url = Director::absoluteURL($this->owner->Link());
+		$request = Controller::curr()->getRequest();
+		// Preview mode
+		if ($request && $request->getVar('CMSPreview')) {
+			// Carry over the params so navigation will work
+			$url = HTTP::setGetVar('CMSPreview', 1, $url);
+			// Simulate subsite without changing domain
+			if ($this->owner->SubsiteID) {
+				$url = HTTP::setGetVar('SubsiteID', $this->owner->SubsiteID, $url);
+				// Hack to fix bug - multiple uses of setGetVar method escape the ampersands again
+				$url = str_replace('&amp;','&',$url); 
+			}
+        } 
+		// Replace the domain with the subsite domain
+		elseif($this->owner->SubsiteID) {
+			$url = preg_replace('/\/\/[^\/]+\//', '//' .  $this->owner->Subsite()->domain() . '/', $url);
+		}
+
+        return $url;
+    }
 }
