@@ -68,7 +68,7 @@ class BlocksSiteTreeExtension extends SiteTreeExtension
 	 */
 	protected function blocksReplaceContent()
 	{
-		return (bool) (Config::inst()->get(get_class($this),'replace_content')
+		return (bool) (Config::inst()->get(get_class($this->owner),'replace_content')
 			&& empty($this->owner->Content)
 		);
 	}
