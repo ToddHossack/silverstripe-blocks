@@ -32,7 +32,7 @@ class BlocksSiteTreeExtension extends SiteTreeExtension
 	 * @config
 	 * @var boolean
 	 */
-	private static $replace_content = false;
+	private static $blocks_replace_content = false;
 
 	/**
 	 * Check if the Blocks CMSFields should be displayed for this Page
@@ -68,7 +68,7 @@ class BlocksSiteTreeExtension extends SiteTreeExtension
 	 */
 	protected function blocksReplaceContent()
 	{
-		return (bool) (Config::inst()->get(get_class($this->owner),'replace_content')
+		return (bool) (Config::inst()->get(get_class($this->owner),'blocks_replace_content')
 			&& empty($this->owner->Content)
 		);
 	}
